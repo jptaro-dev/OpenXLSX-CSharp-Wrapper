@@ -35,7 +35,7 @@ jobs:
                 }
             }
             
-            # 3. 根こそぎインクルードパスを追加（pugixmlが含まれそうなあらゆる候補地を網羅）
+            # 3. 根こそぎインクルードパスを追加
             $nodes = $xml.SelectNodes("//ns:AdditionalIncludeDirectories", $ns)
             foreach ($node in $nodes) {
                 if ($node -ne $null) {
@@ -54,20 +54,19 @@ jobs:
             $xml.Save($vcxproj)
         }
         
-        # 4. wrapper.cpp の特定行をピンポイントで安全に無効化（周辺コードを巻き添えにしない）
+        # 4. wrapper.cpp の特定行をピンポイントで安全に無効化
         $wrapperCpp = "wrapper.cpp"
         if (Test-Path $wrapperCpp) {
             $content = Get-Content $wrapperCpp
-            # 他の変数定義を壊さないよう、末尾に「sheetView();」や「autoFilter();」だけが単体で呼ばれている部分を空行に置換
             $content = $content -replace '^\s*.*->sheetView\(\);\s*$', ''
             $content = $content -replace '^\s*.*->autoFilter\(\);\s*$', ''
             Set-Content -Path $wrapperCpp -Value $content
         }
 
-        # 5. 前回の不足ヘッダーフォールバック
+        # 5. 不足ヘッダーフォールバック (重複していた -Force を片方削除しました)
         $targetDir = "OpenXLSX/headers"
         if (!(Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $targetDir }
-        New-Item -ItemType File -Force -Path "$targetDir/OpenXLSX-Exports.hpp" -Value "#define OPENXLSX_EXPORT`n#define OPENXLSX_NO_EXPORT" -Force
+        New-Item -ItemType File -Path "$targetDir/OpenXLSX-Exports.hpp" -Value "#define OPENXLSX_EXPORT`n#define OPENXLSX_NO_EXPORT" -Force
 
     - name: Build Solution
       run: cmake --build build --config Release
