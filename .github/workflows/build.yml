@@ -13,13 +13,49 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive # サブモジュールとしてOpenXLSXを管理している場合の対策
+        submodules: recursive
 
     - name: Configure CMake
       run: >
         cmake -B build
         -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_CXX_FLAGS="/I\"${{ github.workspace }}/build\" /I\"${{ github.workspace }}/build/OpenXLSX\""
+        -DCMAKE_PROJECT_INCLUDE="${{ github.workspace }}/OpenXLSX_patch.cmake"
+      # ※事前にフック用のファイルを即席で作成して読み込ませます。
+      # ターゲットに対してビルドディレクトリ（BINARY_DIR）のインクルードパスを通す記述です。
 
-    - name: Build Solution
-      run: cmake --build build --config Release
+    - name: Prepare Patch File
+      shell: pwsh
+      run: |
+        @"
+        file(WRITE `"\${CMAKE_BINARY_DIR}/OpenXLSX_inject.cmake`" "
+          if(TARGET OpenXLSXWrapper)
+            target_include_directories(OpenXLSXWrapper PRIVATE 
+              \${CMAKE_BINARY_DIR}
+              \${CMAKE_BINARY_DIR}/OpenXLSX
+              \${PROJECT_BINARY_DIR}
+            )
+          endif()
+        ")
+        file(WRITE `"\${CMAKE_WORKSPACE_DIR}/OpenXLSX_patch.cmake`" "
+          variable_watch(CMAKE_CURRENT_LIST_DIR)
+          set_property(GLOBAL APPEND PROPERTY STEP_HOOKS OpenXLSXWrapper)
+        ")
+        "@ | Out-File -FilePath "${{ github.workspace }}/OpenXLSX_patch.cmake" -Encoding utf8
+
+    - name: Fix and Build Solution
+      # シンプルに確実な方法として、エラーの出ているプロジェクトファイル（vcxproj）へ
+      # インクルードパスを直接追加してビルドを行います。
+      shell: pwsh
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        
+        # vcxproj ファイルに自動生成ディレクトリのパスを直接インジェクション
+        $vcxproj = "build/OpenXLSXWrapper.vcxproj"
+        if (Test-Path $vcxproj) {
+          $content = Get-Content $vcxproj
+          $incPath = "<AdditionalIncludeDirectories>`$(ProjectDir);`$(ProjectDir)OpenXLSX;`$(ProjectDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>"
+          $content = $content -replace "<AdditionalIncludeDirectories>", $incPath
+          Set-Content -Path $vcxproj -Value $content
+        }
+        
+        cmake --build build --config Release
