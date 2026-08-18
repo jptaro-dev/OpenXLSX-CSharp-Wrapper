@@ -15,19 +15,21 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Patch Code and Configure CMake
+    - name: Configure CMake
+      # 最初に関数を実行して build フォルダと vcxproj ファイルを生成させます（ここでリセットされてもOKな順序にします）
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="/EHsc /permissive- /std:c++17"
+
+    - name: Patch Code and Project File
       shell: pwsh
       run: |
-        # 1. MSVCコンパイラに例外処理(/EHsc)、規格準拠(/permissive-)、C++17規格を指定
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="/EHsc /permissive- /std:c++17"
-        
+        # 1. 生成された直後の vcxproj ファイルに対して、上書きされることなく安全にインクルードパスを注入
         $vcxproj = "build/OpenXLSXWrapper.vcxproj"
         if (Test-Path $vcxproj) {
             [xml]$xml = Get-Content $vcxproj
             $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
             $ns.AddNamespace("ns", "http://microsoft.com")
             
-            # 2. 自動生成されるはずだったエクスポートマクロのダミー注入
+            # マクロのダミー注入
             $macroNodes = $xml.SelectNodes("//ns:PreprocessorDefinitions", $ns)
             foreach ($node in $macroNodes) {
                 if ($node -ne $null) {
@@ -35,7 +37,7 @@ jobs:
                 }
             }
             
-            # 3. 根こそぎインクルードパスを追加
+            # pugixml等を含めた絶対・相対インクルードパスを確定で追加
             $nodes = $xml.SelectNodes("//ns:AdditionalIncludeDirectories", $ns)
             foreach ($node in $nodes) {
                 if ($node -ne $null) {
@@ -52,21 +54,24 @@ jobs:
                 }
             }
             $xml.Save($vcxproj)
+            Write-Output "Successfully patched project file paths."
         }
         
-        # 4. wrapper.cpp の特定行をピンポイントで安全に無効化
+        # 2. wrapper.cpp の中にある「sheetView」と「autoFilter」を含む行を、前後の文字に関わらず「行ごと根こそぎ消去」
         $wrapperCpp = "wrapper.cpp"
         if (Test-Path $wrapperCpp) {
             $content = Get-Content $wrapperCpp
-            $content = $content -replace '^\s*.*->sheetView\(\);\s*$', ''
-            $content = $content -replace '^\s*.*->autoFilter\(\);\s*$', ''
+            # 行のどこかに sheetView または autoFilter という単語があったらその行を丸ごと削除
+            $content = $content | Where-Object { $_ -notmatch 'sheetView' -and $_ -notmatch 'autoFilter' }
             Set-Content -Path $wrapperCpp -Value $content
+            Write-Output "Successfully removed incompatible wrapper functions."
         }
 
-        # 5. 不足ヘッダーフォールバック (重複していた -Force を片方削除しました)
+        # 3. 不足ヘッダーフォールバック
         $targetDir = "OpenXLSX/headers"
         if (!(Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $targetDir }
         New-Item -ItemType File -Path "$targetDir/OpenXLSX-Exports.hpp" -Value "#define OPENXLSX_EXPORT`n#define OPENXLSX_NO_EXPORT" -Force
 
     - name: Build Solution
+      # ファイルの書き換えが完了した後にビルドのみを走らせます
       run: cmake --build build --config Release
