@@ -15,32 +15,35 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Prepare Patch File
-      shell: pwsh
-      run: |
-        # エラーを回避するために、まず空のパッチファイルを生成します
-        New-Item -Path "${{ github.workspace }}/OpenXLSX_patch.cmake" -ItemType File -Force
-
     - name: Configure CMake
-      run: >
-        cmake -B build
-        -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_PROJECT_INCLUDE="${{ github.workspace }}/OpenXLSX_patch.cmake"
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
     - name: Fix vcxproj Include Paths
       shell: pwsh
       run: |
-        # 生成された vcxproj ファイルに自動生成ヘッダーのパスを直接注入します
         $vcxproj = "build/OpenXLSXWrapper.vcxproj"
         if (Test-Path $vcxproj) {
-          $content = Get-Content $vcxproj
-          # プロジェクトディレクトリ、およびその中の OpenXLSX ディレクトリをインクルードパスに強制追加
-          $incPath = "<AdditionalIncludeDirectories>`$(ProjectDir);`$(ProjectDir)OpenXLSX;`$(ProjectDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>"
-          $content = $content -replace "<AdditionalIncludeDirectories>", $incPath
-          Set-Content -Path $vcxproj -Value $content
-          Write-Output "Successfully patched $vcxproj"
+            # XMLとして安全にロード
+            [xml]$xml = Get-Content $vcxproj
+            
+            # すべての AdditionalIncludeDirectories 要素を取得
+            $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
+            $ns.AddNamespace("ns", "http://microsoft.com")
+            $nodes = $xml.SelectNodes("//ns:AdditionalIncludeDirectories", $ns)
+            
+            # 各要素にパスを安全に追加
+            foreach ($node in $nodes) {
+                if ($node -ne $null) {
+                    # セミコロンで区切ってビルドディレクトリとOpenXLSXディレクトリを強制追加
+                    $node.InnerText = "`$(ProjectDir);`$(ProjectDir)OpenXLSX;`$(ProjectDir)..;" + $node.InnerText
+                }
+            }
+            
+            # 保存
+            $xml.Save($vcxproj)
+            Write-Output "Successfully patched $vcxproj without corruption."
         } else {
-          Write-Error "Could not find $vcxproj. Please check the target name in your CMakeLists.txt."
+            Write-Error "Could not find $vcxproj."
         }
 
     - name: Build Solution
