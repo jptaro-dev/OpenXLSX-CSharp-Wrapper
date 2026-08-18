@@ -12,9 +12,14 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        submodules: recursive # サブモジュールとしてOpenXLSXを管理している場合の対策
 
     - name: Configure CMake
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      run: >
+        cmake -B build
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_CXX_FLAGS="/I\"${{ github.workspace }}/build\" /I\"${{ github.workspace }}/build/OpenXLSX\""
 
     - name: Build Solution
       run: cmake --build build --config Release
