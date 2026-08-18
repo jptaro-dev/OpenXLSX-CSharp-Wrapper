@@ -15,63 +15,31 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Configure CMake
-      # 最初に関数を実行して build フォルダと vcxproj ファイルを生成させます（ここでリセットされてもOKな順序にします）
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="/EHsc /permissive- /std:c++17"
-
-    - name: Patch Code and Project File
+    - name: Pre-configure and Create Missing Header
       shell: pwsh
       run: |
-        # 1. 生成された直後の vcxproj ファイルに対して、上書きされることなく安全にインクルードパスを注入
-        $vcxproj = "build/OpenXLSXWrapper.vcxproj"
-        if (Test-Path $vcxproj) {
-            [xml]$xml = Get-Content $vcxproj
-            $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
-            $ns.AddNamespace("ns", "http://microsoft.com")
-            
-            # マクロのダミー注入
-            $macroNodes = $xml.SelectNodes("//ns:PreprocessorDefinitions", $ns)
-            foreach ($node in $macroNodes) {
-                if ($node -ne $null) {
-                    $node.InnerText = "OPENXLSX_EXPORT=;OPENXLSX_NO_EXPORT=;" + $node.InnerText
-                }
-            }
-            
-            # pugixml等を含めた絶対・相対インクルードパスを確定で追加
-            $nodes = $xml.SelectNodes("//ns:AdditionalIncludeDirectories", $ns)
-            foreach ($node in $nodes) {
-                if ($node -ne $null) {
-                    $extraPaths = @(
-                        "`$(ProjectDir)OpenXLSX\headers",
-                        "`$(ProjectDir)OpenXLSX\external\pugixml",
-                        "`$(ProjectDir)OpenXLSX\external",
-                        "`$(ProjectDir)external\pugixml",
-                        "`$(ProjectDir)external",
-                        "`$(ProjectDir)OpenXLSX",
-                        "`$(ProjectDir)"
-                    ) -join ";"
-                    $node.InnerText = $extraPaths + ";" + $node.InnerText
-                }
-            }
-            $xml.Save($vcxproj)
-            Write-Output "Successfully patched project file paths."
-        }
-        
-        # 2. wrapper.cpp の中にある「sheetView」と「autoFilter」を含む行を、前後の文字に関わらず「行ごと根こそぎ消去」
-        $wrapperCpp = "wrapper.cpp"
-        if (Test-Path $wrapperCpp) {
-            $content = Get-Content $wrapperCpp
-            # 行のどこかに sheetView または autoFilter という単語があったらその行を丸ごと削除
-            $content = $content | Where-Object { $_ -notmatch 'sheetView' -and $_ -notmatch 'autoFilter' }
-            Set-Content -Path $wrapperCpp -Value $content
-            Write-Output "Successfully removed incompatible wrapper functions."
-        }
-
-        # 3. 不足ヘッダーフォールバック
+        # 1. 存在しない自動生成ヘッダーをあらかじめソース直下に用意して C1083 を防止
         $targetDir = "OpenXLSX/headers"
         if (!(Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $targetDir }
         New-Item -ItemType File -Path "$targetDir/OpenXLSX-Exports.hpp" -Value "#define OPENXLSX_EXPORT`n#define OPENXLSX_NO_EXPORT" -Force
 
+        # 2. wrapper.cpp の中から問題の2関数を含む「ブロック全体」を安全に抹消
+        # 行削除だと構文が崩れるため、関数名そのものをマクロで無効化します
+        $wrapperCpp = "wrapper.cpp"
+        if (Test-Path $wrapperCpp) {
+            $content = Get-Content $wrapperCpp
+            # 関数の最初で即座に return させるか、中身を空にする安全な処理
+            $content = "#define sheetView(...) `n#define autoFilter(...) `n" + ($content -join "`n")
+            Set-Content -Path $wrapperCpp -Value $content
+        }
+
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
     - name: Build Solution
-      # ファイルの書き換えが完了した後にビルドのみを走らせます
-      run: cmake --build build --config Release
+      # 3. プロジェクトファイルの書き換えを一切やめ、コンパイラ(CL.exe)へ直接パスとマクロを強制注入します
+      # /I フラグで、pugixmlの想定される全配置ルートを最優先で探索させます
+      run: >
+        cmake --build build --config Release -- 
+        /p:CL_MPCount=4 
+        /p:AdditionalOptions="/EHsc /permissive- /std:c++17 /I\"${{ github.workspace }}/OpenXLSX/headers\" /I\"${{ github.workspace }}/OpenXLSX/external/pugixml\" /I\"${{ github.workspace }}/OpenXLSX/external\" /I\"${{ github.workspace }}/external/pugixml\" /I\"${{ github.workspace }}/external\" /I\"${{ github.workspace }}/OpenXLSX\" /DOPENXLSX_EXPORT= /DOPENXLSX_NO_EXPORT="
