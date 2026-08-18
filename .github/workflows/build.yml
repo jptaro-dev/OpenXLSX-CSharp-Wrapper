@@ -18,34 +18,22 @@ jobs:
     - name: Ultimate C++ Patch
       shell: pwsh
       run: |
-        # 1. すべての元凶である CMakeLists.txt の先頭に、C++規格やパスの強制命令を直に注入します。
-        # これにより、CMakeがプロジェクトファイルを生成する段階で100%正しい設定が焼き付けられます。
-        $cmakeFile = "CMakeLists.txt"
-        if (Test-Path $cmakeFile) {
-            $currentContent = Get-Content $cmakeFile -Raw
-            $injection = @"
-        # --- AI Injected Force Configurations ---
-        set(CMAKE_CXX_STANDARD 17)
-        set(CMAKE_CXX_STANDARD_REQUIRED ON)
-        add_compile_options(/EHsc /permissive-)
-        include_directories(
-            "\${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/headers"
-            "\${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/external/pugixml"
-            "\${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/external"
-            "\${CMAKE_CURRENT_SOURCE_DIR}/external/pugixml"
-            "\${CMAKE_CURRENT_SOURCE_DIR}/external"
-            "\${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX"
-            "\${CMAKE_CURRENT_SOURCE_DIR}"
-        )
-        add_definitions(-DOPENXLSX_EXPORT= -DOPENXLSX_NO_EXPORT=)
-        # ----------------------------------------
-        "@
-            Set-Content -Path $cmakeFile -Value ($injection + "`n" + $currentContent)
-            Write-Output "Successfully injected properties into top of CMakeLists.txt"
-        }
+        # 1. CMakeの標準機能を使って、ビルド構成フック用のファイルを安全に自動生成します。
+        # 文字列のパース崩れを防ぐため、1行ずつクリーンに書き込みます。
+        $patchFile = "OpenXLSX_config.cmake"
+        "set(CMAKE_CXX_STANDARD 17)" | Out-File -FilePath $patchFile -Encoding utf8
+        "set(CMAKE_CXX_STANDARD_REQUIRED ON)" | Out-File -FilePath $patchFile -Append -Encoding utf8
+        "add_compile_options(/EHsc /permissive-)" | Out-File -FilePath $patchFile -Append -Encoding utf8
+        "include_directories(\"${{ github.workspace }}/OpenXLSX/headers\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
+        "include_directories(\"${{ github.workspace }}/OpenXLSX/external/pugixml\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
+        "include_directories(\"${{ github.workspace }}/OpenXLSX/external\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
+        "include_directories(\"${{ github.workspace }}/external/pugixml\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
+        "include_directories(\"${{ github.workspace }}/external\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
+        "include_directories(\"${{ github.workspace }}/OpenXLSX\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
+        "include_directories(\"${{ github.workspace }}\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
+        "add_definitions(-DOPENXLSX_EXPORT= -DOPENXLSX_NO_EXPORT=)" | Out-File -FilePath $patchFile -Append -Encoding utf8
 
-        # 2. wrapper.cpp の中にある sheetView と autoFilter の行を、
-        # マクロではなく直接「スラッシュ2本(//)」でコメントアウト（無効化）します。
+        # 2. wrapper.cpp の中にある sheetView と autoFilter の行を安全にコメントアウト
         $wrapperCpp = "wrapper.cpp"
         if (Test-Path $wrapperCpp) {
             $lines = Get-Content $wrapperCpp
@@ -55,7 +43,6 @@ jobs:
                 }
             }
             Set-Content -Path $wrapperCpp -Value $lines
-            Write-Output "Successfully commented out incompatible functions."
         }
 
         # 3. 不足している自動生成ヘッダーを事前に作成
@@ -64,9 +51,12 @@ jobs:
         New-Item -ItemType File -Path "$targetDir/OpenXLSX-Exports.hpp" -Value "#define OPENXLSX_EXPORT`n#define OPENXLSX_NO_EXPORT" -Force
 
     - name: Configure CMake
-      # メインの CMakeLists.txt 自体に設定を焼き付けたため、通常のコマンドで正しく生成されます
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      # 4. 作成した外部設定ファイルを「CMAKE_PROJECT_INCLUDE」経由で100%安全に結合します。
+      # これにより、既存の CMakeLists.txt の中身を一切破壊せずに設定だけを最優先で割り込ませられます。
+      run: >
+        cmake -B build 
+        -DCMAKE_BUILD_TYPE=Release 
+        -DCMAKE_PROJECT_INCLUDE="${{ github.workspace }}/OpenXLSX_config.cmake"
 
     - name: Build Solution
-      # 邪魔なMSBuildのオーバーライド指定を排除し、クリーンにビルドさせます
       run: cmake --build build --config Release
