@@ -22,12 +22,12 @@ add_library(OpenXLSX_Wrapper SHARED
     ${OPENXLSX_SOURCES}
 )
 
-# 4. インクルードパスの指定 (生成したダミーヘッダーの場所も含める)
+# 4. インクルードパスの指定
 target_include_directories(OpenXLSX_Wrapper PUBLIC 
     "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX"
     "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/headers"
     "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/headers/detail"
-    "${CMAKE_CURRENT_BINARY_DIR}" # OpenXLSX-Exports.hppを見つけさせるため
+    "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
 # 5. Windows環境用のエクスポート定義
