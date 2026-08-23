@@ -1,62 +1,46 @@
-name: Build C++ Wrapper DLL
+name: Build OpenXLSX C# Wrapper
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            artifact-name: windows-dll
+            artifact-path: build/Release/*.dll
+          - os: ubuntu-latest
+            artifact-name: linux-so
+            artifact-path: build/*.so
+          - os: macos-latest
+            artifact-name: macos-dylib
+            artifact-path: build/*.dylib
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive
-
-    - name: Ultimate C++ Patch
-      shell: pwsh
-      run: |
-        # 1. CMakeの標準機能を使って、ビルド構成フック用のファイルを安全に自動生成します。
-        # 文字列のパース崩れを防ぐため、1行ずつクリーンに書き込みます。
-        $patchFile = "OpenXLSX_config.cmake"
-        "set(CMAKE_CXX_STANDARD 17)" | Out-File -FilePath $patchFile -Encoding utf8
-        "set(CMAKE_CXX_STANDARD_REQUIRED ON)" | Out-File -FilePath $patchFile -Append -Encoding utf8
-        "add_compile_options(/EHsc /permissive-)" | Out-File -FilePath $patchFile -Append -Encoding utf8
-        "include_directories(\"${{ github.workspace }}/OpenXLSX/headers\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
-        "include_directories(\"${{ github.workspace }}/OpenXLSX/external/pugixml\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
-        "include_directories(\"${{ github.workspace }}/OpenXLSX/external\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
-        "include_directories(\"${{ github.workspace }}/external/pugixml\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
-        "include_directories(\"${{ github.workspace }}/external\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
-        "include_directories(\"${{ github.workspace }}/OpenXLSX\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
-        "include_directories(\"${{ github.workspace }}\")" | Out-File -FilePath $patchFile -Append -Encoding utf8
-        "add_definitions(-DOPENXLSX_EXPORT= -DOPENXLSX_NO_EXPORT=)" | Out-File -FilePath $patchFile -Append -Encoding utf8
-
-        # 2. wrapper.cpp の中にある sheetView と autoFilter の行を安全にコメントアウト
-        $wrapperCpp = "wrapper.cpp"
-        if (Test-Path $wrapperCpp) {
-            $lines = Get-Content $wrapperCpp
-            for ($i = 0; $i -lt $lines.Count; $i++) {
-                if ($lines[$i] -match 'sheetView' -or $lines[$i] -match 'autoFilter') {
-                    $lines[$i] = "// " + $lines[$i]
-                }
-            }
-            Set-Content -Path $wrapperCpp -Value $lines
-        }
-
-        # 3. 不足している自動生成ヘッダーを事前に作成
-        $targetDir = "OpenXLSX/headers"
-        if (!(Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $targetDir }
-        New-Item -ItemType File -Path "$targetDir/OpenXLSX-Exports.hpp" -Value "#define OPENXLSX_EXPORT`n#define OPENXLSX_NO_EXPORT" -Force
+        submodules: recursive # サブモジュールがある場合に備えて
 
     - name: Configure CMake
-      # 4. 作成した外部設定ファイルを「CMAKE_PROJECT_INCLUDE」経由で100%安全に結合します。
-      # これにより、既存の CMakeLists.txt の中身を一切破壊せずに設定だけを最優先で割り込ませられます。
-      run: >
-        cmake -B build 
-        -DCMAKE_BUILD_TYPE=Release 
-        -DCMAKE_PROJECT_INCLUDE="${{ github.workspace }}/OpenXLSX_config.cmake"
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Build Solution
+    - name: Build
       run: cmake --build build --config Release
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact-name }}
+        path: ${{ matrix.artifact-path }}
