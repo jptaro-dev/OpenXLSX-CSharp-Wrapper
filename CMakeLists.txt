@@ -4,9 +4,12 @@ project(OpenXLSX_CSharp_Wrapper LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 1. 不足しているエクスポート用マクロヘッダーをビルドディレクトリにダミー生成
-# (中身が空でも、マクロ未定義状態として正常に動作・コンパイルできます)
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/OpenXLSX-Exports.hpp" "")
+# 1. 不足しているエクスポート用マクロを適切に定義してダミー生成
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/OpenXLSX-Exports.hpp" "
+#ifndef OPENXLSX_EXPORT
+#define OPENXLSX_EXPORT
+#endif
+")
 
 # 2. OpenXLSXの全ソースファイルをリストアップ
 file(GLOB_RECURSE OPENXLSX_SOURCES 
