@@ -19,19 +19,19 @@ jobs:
         include:
           - os: windows-latest
             artifact-name: windows-dll
-            artifact-path: build/Release/*.dll
+            artifact-path: build/Release/OpenXLSX_Wrapper.dll
           - os: ubuntu-latest
             artifact-name: linux-so
-            artifact-path: build/*.so
+            artifact-path: build/libOpenXLSX_Wrapper.so
           - os: macos-latest
             artifact-name: macos-dylib
-            artifact-path: build/*.dylib
+            artifact-path: build/libOpenXLSX_Wrapper.dylib
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive # サブモジュールがある場合に備えて
+        submodules: recursive
 
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
