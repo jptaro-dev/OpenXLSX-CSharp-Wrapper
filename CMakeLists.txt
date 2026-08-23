@@ -4,16 +4,25 @@ project(OpenXLSX_CSharp_Wrapper LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 1. サブディレクトリの OpenXLSX ライブラリをビルド対象に加える
-add_subdirectory(OpenXLSX)
+# 1. OpenXLSXの全ソースファイルを直接リストアップ
+file(GLOB_RECURSE OPENXLSX_SOURCES 
+    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/sources/*.cpp"
+)
 
-# 2. ラッパー用の動的ライブラリ（DLL / so / dylib）の定義
-add_library(OpenXLSX_Wrapper SHARED wrapper.cpp)
+# 2. ラッパー用の動的ライブラリ（DLL/so/dylib）を定義
+add_library(OpenXLSX_Wrapper SHARED 
+    wrapper.cpp
+    ${OPENXLSX_SOURCES}
+)
 
-# 3. 依存関係の解決（ラッパーから OpenXLSX のヘッダーや本体を紐付ける）
-target_link_libraries(OpenXLSX_Wrapper PRIVATE OpenXLSX::OpenXLSX)
+# 3. インクルードパスの指定
+target_include_directories(OpenXLSX_Wrapper PUBLIC 
+    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX"
+    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/headers"
+    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/headers/detail"
+)
 
-# 4. Windows環境で C# から呼び出す際のエクスポート設定 (__declspec(dllexport)用)
+# 4. Windows環境用のエクスポート定義
 if(WIN32)
     target_compile_definitions(OpenXLSX_Wrapper PRIVATE EXPORT_API)
 endif()
