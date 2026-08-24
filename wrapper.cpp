@@ -49,12 +49,12 @@ EXPORT void OpenXLSX_SetCellInt(void* wksPtr, uint32_t row, uint32_t col, int32_
 }
 
 // --- 表示・便利機能 ---
-EXPORT void OpenXLSX_FreezePanes(void* wksPtr, uint32_t row, uint32_t col) {
-    auto* wks = static_cast<OpenXLSX::XLWorksheet*>(wksPtr);
-    wks->sheetView().freezePanes(row, col);
-}
+//EXPORT void OpenXLSX_FreezePanes(void* wksPtr, uint32_t row, uint32_t col) {
+//    auto* wks = static_cast<OpenXLSX::XLWorksheet*>(wksPtr);
+//    wks->sheetView().freezePanes(row, col);
+//}
 
-EXPORT void OpenXLSX_SetAutoFilter(void* wksPtr, const char* rangeStr) {
-    auto* wks = static_cast<OpenXLSX::XLWorksheet*>(wksPtr);
-    wks->autoFilter().setRange(rangeStr);
-}
+//EXPORT void OpenXLSX_SetAutoFilter(void* wksPtr, const char* rangeStr) {
+//    auto* wks = static_cast<OpenXLSX::XLWorksheet*>(wksPtr);
+//    wks->autoFilter().setRange(rangeStr);
+//}
