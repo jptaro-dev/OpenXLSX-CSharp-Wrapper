@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(OpenXLSX_CSharp_Wrapper LANGUAGES CXX)
+project(OpenXLSX_CSharp_Wrapper LANGUAGES C CXX) # C言語のサポートを明示
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,18 +18,19 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/miniz_export.h" "
 #endif
 ")
 
-# 3. リポジトリ内のすべてのC/C++ソースファイルを「フォルダを問わず」全回収する
-# (これにより、headers/detail/ 内などに置いた pugixml.cpp 等も確実にビルドに含まれます)
-file(GLOB_RECURSE OPENXLSX_SOURCES 
-    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/*.c"
+# 3. リポジトリ内のすべてのC++ファイル(.cpp)とCファイル(.c)を確実に全回収する
+file(GLOB_RECURSE OPENXLSX_CPP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/*.cpp")
+file(GLOB_RECURSE OPENXLSX_C_SOURCES   "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/*.c")
+
+# 全ソースを一本のリストにまとめる
+set(ALL_SOURCES 
+    wrapper.cpp
+    ${OPENXLSX_CPP_SOURCES}
+    ${OPENXLSX_C_SOURCES}
 )
 
 # 4. ラッパー用の動的ライブラリ定義
-add_library(OpenXLSX_Wrapper SHARED 
-    wrapper.cpp
-    ${OPENXLSX_SOURCES}
-)
+add_library(OpenXLSX_Wrapper SHARED ${ALL_SOURCES})
 
 # 5. インクルードパスの指定
 target_include_directories(OpenXLSX_Wrapper PUBLIC 
