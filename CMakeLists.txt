@@ -11,17 +11,18 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/OpenXLSX-Exports.hpp" "
 #endif
 ")
 
-# 2. 不足している miniz_export.h を適切に定義してダミー生成
+# 2. 不足している miniz_export.h をダミー生成
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/miniz_export.h" "
 #ifndef MINIZ_EXPORT
 #define MINIZ_EXPORT
 #endif
 ")
 
-# 3. OpenXLSXの全ソースファイルをリストアップ
+# 3. リポジトリ内のすべてのC/C++ソースファイルを「フォルダを問わず」全回収する
+# (これにより、headers/detail/ 内などに置いた pugixml.cpp 等も確実にビルドに含まれます)
 file(GLOB_RECURSE OPENXLSX_SOURCES 
-    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/sources/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/sources/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/*.c"
 )
 
 # 4. ラッパー用の動的ライブラリ定義
@@ -36,7 +37,7 @@ target_include_directories(OpenXLSX_Wrapper PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/headers"
     "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/headers/detail"
     "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/sources/utilities"
-    "${CMAKE_CURRENT_BINARY_DIR}" # ここからダミーヘッダーを読み込ませる
+    "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
 # 6. Windows環境用の設定 (MSVC対策)
