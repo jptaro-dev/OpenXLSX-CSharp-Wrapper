@@ -1,13 +1,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <sstream>
 #include <OpenXLSX.hpp>
 #include <OpenXLSX-Exports.hpp>
-
-// XML操作に必要なヘッダー
-#include <detail/pugixml.hpp>
-#include <XLXmlData.hpp>
 
 using namespace OpenXLSX;
 
@@ -133,55 +128,7 @@ extern "C" {
     }
 
     // =========================================================================
-    // 4. 【独自実装】0.5.1対応 爆速Excelテーブル注入機能
-    // =========================================================================
-    // 本家未実装のテーブル機能を、PublicなxmlData文字列の書き換えによって完全実現！
-
-    EXPORT void OpenXLSX_CreateTable(void* wksPtr, const char* rangeRef, const char* tableName) {
-        if (!wksPtr || !rangeRef || !tableName) return;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        
-        // 1. シートの生XML文字列をパース
-        pugi::xml_document xmlDoc;
-        xmlDoc.load_string(wks->xmlData().c_str());
-        auto root = xmlDoc.document_element();
-        
-        // 2. <tableParts> と <tablePart> ノードを末尾に追加してテーブル定義を紐付ける
-        auto tableParts = root.child("tableParts");
-        if (!tableParts) tableParts = root.append_child("tableParts");
-        tableParts.append_attribute("count") = "1";
-        
-        auto tablePart = tableParts.child("tablePart");
-        if (!tablePart) tablePart = tableParts.append_child("tablePart");
-        tablePart.append_attribute("r:id") = "rIdTable1"; // 簡易割り当て
-
-        // 3. 編集したXMLを文字列に変換して再セット
-        std::stringstream ss;
-        xmlDoc.save(ss, "", pugi::format_raw);
-        wks->xmlData() = ss.str();
-    }
-
-    EXPORT bool OpenXLSX_TableExists(void* wksPtr, const char* tableName) {
-        if (!wksPtr || !tableName) return false;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        pugi::xml_document xmlDoc;
-        xmlDoc.load_string(wks->xmlData().c_str());
-        return xmlDoc.document_element().child("tableParts") != nullptr;
-    }
-
-    EXPORT void OpenXLSX_DeleteTable(void* wksPtr, const char* tableName) {
-        if (!wksPtr) return;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        pugi::xml_document xmlDoc;
-        xmlDoc.load_string(wks->xmlData().c_str());
-        xmlDoc.document_element().remove_child("tableParts");
-        std::stringstream ss;
-        xmlDoc.save(ss, "", pugi::format_raw);
-        wks->xmlData() = ss.str();
-    }
-
-    // =========================================================================
-    // 5. セルへの値の高速読み書き (XLCell / 行列番号指定)
+    // 4. セルへの値の高速読み書き (XLCell / 行列番号指定)
     // =========================================================================
 
     EXPORT void OpenXLSX_SetCellString(void* wksPtr, uint32_t row, uint32_t col, const char* value) {
@@ -189,7 +136,7 @@ extern "C" {
         static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value() = value;
     }
 
-    EXPORT void OpenXLSX_SetCellInt(void* wksPtr, uint32_t row, uint32_t col, int32_t value) {
+    EXPORT void void OpenXLSX_SetCellInt(void* wksPtr, uint32_t row, uint32_t col, int32_t value) {
         if (!wksPtr) return;
         static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value() = value;
     }
