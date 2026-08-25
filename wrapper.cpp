@@ -6,7 +6,7 @@
 
 // 不足していた内部XML操作用のヘッダーを完全に紐付けます
 #include <detail/pugixml.hpp>
-#include <detail/XLXmlData.hpp>
+#include <XLXmlData.hpp>
 
 using namespace OpenXLSX;
 
