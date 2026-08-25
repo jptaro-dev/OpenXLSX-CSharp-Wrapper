@@ -1,10 +1,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <sstream>
 #include <OpenXLSX.hpp>
 #include <OpenXLSX-Exports.hpp>
 
-// 不足していた内部XML操作用のヘッダーを完全に紐付けます
+// 内部XML操作に必要なヘッダー
 #include <detail/pugixml.hpp>
 #include <XLXmlData.hpp>
 
@@ -57,7 +58,6 @@ extern "C" {
     EXPORT void* OpenXLSX_GetWorkbook(void* docPtr) {
         if (!docPtr) return nullptr;
         auto* doc = static_cast<XLDocument*>(docPtr);
-        // 新しいオブジェクトを生成してポインタとして安全にC#に引き渡します
         return new XLWorkbook(doc->workbook());
     }
 
@@ -108,17 +108,21 @@ extern "C" {
         wks->mergeCells(rangeRef);
     }
 
-    EXPORT void OpenXLSX_UnmergeCells(void* wksPtr, const char[64]) {
-        // 本来は範囲指定の解除ですが、ビルド互換性のため簡易バッファ化します
+    EXPORT void OpenXLSX_UnmergeCells(void* wksPtr, const char* rangeRef) {
+        if (!wksPtr || !rangeRef) return;
+        auto* wks = static_cast<XLWorksheet*>(wksPtr);
+        wks->unmergeCells(rangeRef);
     }
 
-    // 正しいアクセスルートを確立した爆速ウィンドウ枠固定
+    // 生のXML文字列（std::string）を受け渡してウィンドウ枠固定
     EXPORT void OpenXLSX_FreezePanes(void* wksPtr, uint32_t row, uint32_t col) {
         if (!wksPtr) return;
         auto* wks = static_cast<XLWorksheet*>(wksPtr);
         
-        // 正しい設計図(XLXmlData)を経由して生XMLを取得
-        auto root = wks->xmlData().xmlDocument().document_element();
+        // wks->xmlData() から直接std::string（XMLテキスト）を取得してパース
+        pugi::xml_document xmlDoc;
+        xmlDoc.load_string(wks->xmlData().c_str());
+        auto root = xmlDoc.document_element();
         
         auto sheetViews = root.child("sheetViews");
         if (!sheetViews) sheetViews = root.prepend_child("sheetViews");
@@ -132,18 +136,29 @@ extern "C" {
         pane.append_attribute("topLeftCell") = "A2";                  
         pane.append_attribute("activePane") = "bottomLeft";
         pane.append_attribute("state") = "frozen";
+
+        // 編集したXMLを文字列に変換して再セット
+        std::stringstream ss;
+        xmlDoc.save(ss, "", pugi::format_raw);
+        wks->xmlData() = ss.str();
     }
 
-    // 正しいアクセスルートを確立した爆速オートフィルタ
+    // 生のXML文字列（std::string）を受け渡してオートフィルタ
     EXPORT void OpenXLSX_SetAutoFilter(void* wksPtr, const char* rangeRef) {
         if (!wksPtr || !rangeRef) return;
         auto* wks = static_cast<XLWorksheet*>(wksPtr);
         
-        auto root = wks->xmlData().xmlDocument().document_element();
+        pugi::xml_document xmlDoc;
+        xmlDoc.load_string(wks->xmlData().c_str());
+        auto root = xmlDoc.document_element();
         
         auto autoFilter = root.child("autoFilter");
         if (!autoFilter) autoFilter = root.append_child("autoFilter");
         autoFilter.append_attribute("ref") = rangeRef;
+
+        std::stringstream ss;
+        xmlDoc.save(ss, "", pugi::format_raw);
+        wks->xmlData() = ss.str();
     }
 
 
