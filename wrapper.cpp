@@ -4,9 +4,6 @@
 #include <OpenXLSX.hpp>
 #include <OpenXLSX-Exports.hpp>
 
-// XML操作に必要な本物のヘッダー
-#include <detail/pugixml.hpp>
-
 using namespace OpenXLSX;
 
 // Windows環境とそれ以外（Linux/Mac）でエクスポート用のキーワードを自動で切り替える
@@ -94,7 +91,7 @@ extern "C" {
         return new XLWorksheet(wbk->worksheet(sheetName));
     }
 
-    EXPORT void OpenXLSX_FreeWorksheet(void* wksPtr) {
+    EXPORT void FreeWorksheet(void* wksPtr) {
         if (!wksPtr) return;
         auto* wks = static_cast<XLWorksheet*>(wksPtr);
         delete wks;
@@ -110,40 +107,6 @@ extern "C" {
         if (!wksPtr || !rangeRef) return;
         auto* wks = static_cast<XLWorksheet*>(wksPtr);
         wks->unmergeCells(rangeRef);
-    }
-
-    // パブリックな xmlDocument() に直接アクセスして、爆速でウィンドウ枠固定を注入
-    EXPORT void OpenXLSX_FreezePanes(void* wksPtr, uint32_t row, uint32_t col) {
-        if (!wksPtr) return;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        
-        // パブリックな公開メソッドを経由して生のpugiオブジェクトを操作します
-        auto root = wks->xmlDocument().document_element();
-        
-        auto sheetViews = root.child("sheetViews");
-        if (!sheetViews) sheetViews = root.prepend_child("sheetViews");
-        auto sheetView = sheetViews.child("sheetView");
-        if (!sheetView) sheetView = sheetViews.append_child("sheetView");
-        
-        sheetView.append_attribute("tabSelected") = "1";
-        auto pane = sheetView.append_child("pane");
-        pane.append_attribute("ySplit") = std::to_string(row).c_str();
-        pane.append_attribute("xSplit") = std::to_string(col).c_str();
-        pane.append_attribute("topLeftCell") = "A2";                  
-        pane.append_attribute("activePane") = "bottomLeft";
-        pane.append_attribute("state") = "frozen";
-    }
-
-    // パブリックな xmlDocument() に直接アクセスして、爆速でオートフィルタを注入
-    EXPORT void OpenXLSX_SetAutoFilter(void* wksPtr, const char* rangeRef) {
-        if (!wksPtr || !rangeRef) return;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        
-        auto root = wks->xmlDocument().document_element();
-        
-        auto autoFilter = root.child("autoFilter");
-        if (!autoFilter) autoFilter = root.append_child("autoFilter");
-        autoFilter.append_attribute("ref") = rangeRef;
     }
 
 
