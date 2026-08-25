@@ -39,6 +39,9 @@ jobs:
     - name: Build
       run: cmake --build build --config Release
 
+    - name: Dump Export Functions
+      run: dumpbin /exports build/Release/OpenXLSX_Wrapper.dll
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
