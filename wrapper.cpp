@@ -136,7 +136,7 @@ extern "C" {
         static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value() = value;
     }
 
-    EXPORT void void OpenXLSX_SetCellInt(void* wksPtr, uint32_t row, uint32_t col, int32_t value) {
+    EXPORT void OpenXLSX_SetCellInt(void* wksPtr, uint32_t row, uint32_t col, int32_t value) {
         if (!wksPtr) return;
         static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value() = value;
     }
