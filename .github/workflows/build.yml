@@ -42,9 +42,8 @@ jobs:
     - name: Dump Export Functions
       shell: cmd
       run: |
-        call "C:\Program Files\Microsoft Visual Studio\2026\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
-        dumpbin /exports build\Release\OpenXLSX_Wrapper.dll
-
+        cmake -E __run_co_compile -- dumpbin /exports build\Release\OpenXLSX_Wrapper.dll
+        
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
