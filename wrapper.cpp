@@ -1,7 +1,16 @@
-#include <OpenXLSX.hpp>
+#include <iostream>
 #include <string>
+#include <OpenXLSX.hpp>
+#include <OpenXLSX-Exports.hpp>
 
-#define EXPORT extern "C" __declspec(dllexport)
+using namespace OpenXLSX;
+
+// Windows環境とそれ以外（Linux/Mac）でエクスポート用のキーワードを自動で切り替える
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+#  define EXPORT extern "C" __declspec(dllexport)
+#else
+#  define EXPORT extern "C" __attribute__((visibility("default")))
+#endif
 
 // --- Document 階層 ---
 EXPORT void* OpenXLSX_CreateDoc(const char* path) {
