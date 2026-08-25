@@ -6,7 +6,7 @@
 
 using namespace OpenXLSX;
 
-// Windows環境とそれ以外（Linux/Mac）でエクスポート用のキーワードを自動で切り替える
+// クロスプラットフォーム（Windows/Linux/Mac）対応のエクスポートマクロ
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 #  define EXPORT extern "C" __declspec(dllexport)
 #else
@@ -15,9 +15,9 @@ using namespace OpenXLSX;
 
 extern "C" {
 
-    // ==========================================
+    // =========================================================================
     // 1. ドキュメント全体を管理する関数 (XLDocument)
-    // ==========================================
+    // =========================================================================
 
     EXPORT void* OpenXLSX_CreateDoc() {
         return new XLDocument();
@@ -25,8 +25,32 @@ extern "C" {
 
     EXPORT void OpenXLSX_OpenDoc(void* docPtr, const char* path) {
         if (!docPtr || !path) return;
-        auto* doc = static_cast<XLDocument*>(docPtr);
-        doc->open(path);
+        static_cast<XLDocument*>(docPtr)->open(path);
+    }
+
+    EXPORT void OpenXLSX_CreateNewDoc(void* docPtr, const char* path) {
+        if (!docPtr || !path) return;
+        static_cast<XLDocument*>(docPtr)->create(path);
+    }
+
+    EXPORT void OpenXLSX_SaveDoc(void* docPtr) {
+        if (!docPtr) return;
+        static_cast<XLDocument*>(docPtr)->save();
+    }
+
+    EXPORT void OpenXLSX_SaveDocAs(void* docPtr, const char* path) {
+        if (!docPtr || !path) return;
+        static_cast<XLDocument*>(docPtr)->saveAs(path);
+    }
+
+    EXPORT void OpenXLSX_CloseDoc(void* docPtr) {
+        if (!docPtr) return;
+        static_cast<XLDocument*>(docPtr)->close();
+    }
+
+    EXPORT void OpenXLSX_DeleteDoc(void* docPtr) {
+        if (!docPtr) return;
+        delete static_cast<XLDocument*>(docPtr);
     }
 
     EXPORT void OpenXLSX_SaveAndClose(void* docPtr) {
@@ -45,92 +69,153 @@ extern "C" {
         delete doc;
     }
 
-
-    // ==========================================
+    // =========================================================================
     // 2. ブック全体を管理する関数 (XLWorkbook)
-    // ==========================================
+    // =========================================================================
 
     EXPORT void* OpenXLSX_GetWorkbook(void* docPtr) {
         if (!docPtr) return nullptr;
-        auto* doc = static_cast<XLDocument*>(docPtr);
-        return new XLWorkbook(doc->workbook());
+        return new XLWorkbook(static_cast<XLDocument*>(docPtr)->workbook());
     }
 
     EXPORT void OpenXLSX_FreeWorkbook(void* wbkPtr) {
         if (!wbkPtr) return;
-        auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
-        delete wbk;
+        delete static_cast<XLWorkbook*>(wbkPtr);
     }
 
     EXPORT void OpenXLSX_AddWorksheet(void* wbkPtr, const char* sheetName) {
         if (!wbkPtr || !sheetName) return;
-        auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
-        wbk->addWorksheet(sheetName);
+        static_cast<XLWorkbook*>(wbkPtr)->addWorksheet(sheetName);
     }
 
     EXPORT void OpenXLSX_DeleteSheet(void* wbkPtr, const char* sheetName) {
         if (!wbkPtr || !sheetName) return;
-        auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
-        wbk->deleteSheet(sheetName);
+        static_cast<XLWorkbook*>(wbkPtr)->deleteSheet(sheetName);
     }
 
     EXPORT bool OpenXLSX_SheetExists(void* wbkPtr, const char* sheetName) {
         if (!wbkPtr || !sheetName) return false;
-        auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
-        return wbk->sheetExists(sheetName);
+        return static_cast<XLWorkbook*>(wbkPtr)->sheetExists(sheetName);
     }
 
+    EXPORT void OpenXLSX_CloneWorksheet(void* wbkPtr, const char* sourceName, const char* cloneName) {
+        if (!wbkPtr || !sourceName || !cloneName) return;
+        static_cast<XLWorkbook*>(wbkPtr)->cloneWorksheet(sourceName, cloneName);
+    }
 
-    // ==========================================
+    // =========================================================================
     // 3. ワークシートを操作する関数 (XLWorksheet)
-    // ==========================================
+    // =========================================================================
 
     EXPORT void* OpenXLSX_GetWorksheet(void* wbkPtr, const char* sheetName) {
         if (!wbkPtr || !sheetName) return nullptr;
-        auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
-        return new XLWorksheet(wbk->worksheet(sheetName));
+        return new XLWorksheet(static_cast<XLWorkbook*>(wbkPtr)->worksheet(sheetName));
     }
 
     EXPORT void OpenXLSX_FreeWorksheet(void* wksPtr) {
         if (!wksPtr) return;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        delete wks;
+        delete static_cast<XLWorksheet*>(wksPtr);
     }
 
     EXPORT void OpenXLSX_MergeCells(void* wksPtr, const char* rangeRef) {
         if (!wksPtr || !rangeRef) return;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        wks->mergeCells(rangeRef);
+        static_cast<XLWorksheet*>(wksPtr)->mergeCells(rangeRef);
     }
 
     EXPORT void OpenXLSX_UnmergeCells(void* wksPtr, const char* rangeRef) {
         if (!wksPtr || !rangeRef) return;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        wks->unmergeCells(rangeRef);
+        static_cast<XLWorksheet*>(wksPtr)->unmergeCells(rangeRef);
     }
 
+    // =========================================================================
+    // 4. 新機能：Excelテーブル機能 (XLTables / XLTable)
+    // =========================================================================
 
-    // ==========================================
-    // 4. セルへの値の読み書きを行う関数 (XLCell)
-    // ==========================================
+    EXPORT void OpenXLSX_CreateTable(void* wksPtr, const char* rangeRef, const char* tableName) {
+        if (!wksPtr || !rangeRef || !tableName) return;
+        auto* wks = static_cast<XLWorksheet*>(wksPtr);
+        wks->tables().createTable(wks->range(rangeRef), tableName);
+    }
+
+    EXPORT bool OpenXLSX_TableExists(void* wksPtr, const char* tableName) {
+        if (!wksPtr || !tableName) return false;
+        return static_cast<XLWorksheet*>(wksPtr)->tables().tableExists(tableName);
+    }
+
+    EXPORT void OpenXLSX_DeleteTable(void* wksPtr, const char* tableName) {
+        if (!wksPtr || !tableName) return;
+        static_cast<XLWorksheet*>(wksPtr)->tables().deleteTable(tableName);
+    }
+
+    // =========================================================================
+    // 5. セルへの値の高速読み書き (XLCell / XLCellValue 行列番号指定)
+    // =========================================================================
 
     EXPORT void OpenXLSX_SetCellString(void* wksPtr, uint32_t row, uint32_t col, const char* value) {
         if (!wksPtr || !value) return;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        wks->cell(row, col).value() = value;
+        static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value() = value;
     }
 
     EXPORT void OpenXLSX_SetCellInt(void* wksPtr, uint32_t row, uint32_t col, int32_t value) {
         if (!wksPtr) return;
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
-        wks->cell(row, col).value() = value;
+        static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value() = value;
+    }
+
+    EXPORT void OpenXLSX_SetCellFloat(void* wksPtr, uint32_t row, uint32_t col, double value) {
+        if (!wksPtr) return;
+        static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value() = value;
+    }
+
+    EXPORT void OpenXLSX_SetCellBool(void* wksPtr, uint32_t row, uint32_t col, bool value) {
+        if (!wksPtr) return;
+        static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value() = value;
+    }
+
+    EXPORT void OpenXLSX_SetCellFormula(void* wksPtr, uint32_t row, uint32_t col, const char* formula) {
+        if (!wksPtr || !formula) return;
+        static_cast<XLWorksheet*>(wksPtr)->cell(row, col).setFormula(formula);
     }
 
     EXPORT const char* OpenXLSX_GetCellString(void* wksPtr, uint32_t row, uint32_t col) {
         if (!wksPtr) return "";
-        auto* wks = static_cast<XLWorksheet*>(wksPtr);
         static std::string ret;
-        ret = wks->cell(row, col).value().get<std::string>();
+        try {
+            ret = static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value().get<std::string>();
+        } catch (...) {
+            ret = "";
+        }
         return ret.c_str();
+    }
+
+    EXPORT int32_t OpenXLSX_GetCellInt(void* wksPtr, uint32_t row, uint32_t col) {
+        if (!wksPtr) return 0;
+        try {
+            return static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value().get<int32_t>();
+        } catch (...) {
+            return 0;
+        }
+    }
+
+    EXPORT double OpenXLSX_GetCellFloat(void* wksPtr, uint32_t row, uint32_t col) {
+        if (!wksPtr) return 0.0;
+        try {
+            return static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value().get<double>();
+        } catch (...) {
+            return 0.0;
+        }
+    }
+
+    EXPORT bool OpenXLSX_GetCellBool(void* wksPtr, uint32_t row, uint32_t col) {
+        if (!wksPtr) return false;
+        try {
+            return static_cast<XLWorksheet*>(wksPtr)->cell(row, col).value().get<bool>();
+        } catch (...) {
+            return false;
+        }
+    }
+
+    EXPORT void OpenXLSX_ClearCell(void* wksPtr, uint32_t row, uint32_t col) {
+        if (!wksPtr) return;
+        static_cast<XLWorksheet*>(wksPtr)->cell(row, col).clear();
     }
 }
