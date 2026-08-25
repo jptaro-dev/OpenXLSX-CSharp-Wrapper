@@ -91,7 +91,7 @@ extern "C" {
         return new XLWorksheet(wbk->worksheet(sheetName));
     }
 
-    EXPORT void FreeWorksheet(void* wksPtr) {
+    EXPORT void OpenXLSX_FreeWorksheet(void* wksPtr) {
         if (!wksPtr) return;
         auto* wks = static_cast<XLWorksheet*>(wksPtr);
         delete wks;
