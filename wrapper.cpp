@@ -1,13 +1,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <sstream>
 #include <OpenXLSX.hpp>
 #include <OpenXLSX-Exports.hpp>
 
-// 内部XML操作に必要なヘッダー
+// XML操作に必要な本物のヘッダー
 #include <detail/pugixml.hpp>
-#include <XLXmlData.hpp>
 
 using namespace OpenXLSX;
 
@@ -114,15 +112,13 @@ extern "C" {
         wks->unmergeCells(rangeRef);
     }
 
-    // 生のXML文字列（std::string）を受け渡してウィンドウ枠固定
+    // パブリックな xmlDocument() に直接アクセスして、爆速でウィンドウ枠固定を注入
     EXPORT void OpenXLSX_FreezePanes(void* wksPtr, uint32_t row, uint32_t col) {
         if (!wksPtr) return;
         auto* wks = static_cast<XLWorksheet*>(wksPtr);
         
-        // wks->xmlData() から直接std::string（XMLテキスト）を取得してパース
-        pugi::xml_document xmlDoc;
-        xmlDoc.load_string(wks->xmlData().c_str());
-        auto root = xmlDoc.document_element();
+        // パブリックな公開メソッドを経由して生のpugiオブジェクトを操作します
+        auto root = wks->xmlDocument().document_element();
         
         auto sheetViews = root.child("sheetViews");
         if (!sheetViews) sheetViews = root.prepend_child("sheetViews");
@@ -136,29 +132,18 @@ extern "C" {
         pane.append_attribute("topLeftCell") = "A2";                  
         pane.append_attribute("activePane") = "bottomLeft";
         pane.append_attribute("state") = "frozen";
-
-        // 編集したXMLを文字列に変換して再セット
-        std::stringstream ss;
-        xmlDoc.save(ss, "", pugi::format_raw);
-        wks->xmlData() = ss.str();
     }
 
-    // 生のXML文字列（std::string）を受け渡してオートフィルタ
+    // パブリックな xmlDocument() に直接アクセスして、爆速でオートフィルタを注入
     EXPORT void OpenXLSX_SetAutoFilter(void* wksPtr, const char* rangeRef) {
         if (!wksPtr || !rangeRef) return;
         auto* wks = static_cast<XLWorksheet*>(wksPtr);
         
-        pugi::xml_document xmlDoc;
-        xmlDoc.load_string(wks->xmlData().c_str());
-        auto root = xmlDoc.document_element();
+        auto root = wks->xmlDocument().document_element();
         
         auto autoFilter = root.child("autoFilter");
         if (!autoFilter) autoFilter = root.append_child("autoFilter");
         autoFilter.append_attribute("ref") = rangeRef;
-
-        std::stringstream ss;
-        xmlDoc.save(ss, "", pugi::format_raw);
-        wks->xmlData() = ss.str();
     }
 
 
