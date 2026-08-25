@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(OpenXLSX_CSharp_Wrapper LANGUAGES C CXX) # C言語のサポートを明示
+project(OpenXLSX_CSharp_Wrapper LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,11 +18,10 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/miniz_export.h" "
 #endif
 ")
 
-# 3. リポジトリ内のすべてのC++ファイル(.cpp)とCファイル(.c)を確実に全回収する
+# 3. すべてのソースファイルを全回収
 file(GLOB_RECURSE OPENXLSX_CPP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/*.cpp")
 file(GLOB_RECURSE OPENXLSX_C_SOURCES   "${CMAKE_CURRENT_SOURCE_DIR}/OpenXLSX/*.c")
 
-# 全ソースを一本のリストにまとめる
 set(ALL_SOURCES 
     wrapper.cpp
     ${OPENXLSX_CPP_SOURCES}
@@ -41,8 +40,14 @@ target_include_directories(OpenXLSX_Wrapper PUBLIC
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
-# 6. Windows環境用の設定 (MSVC対策)
+# 6. 環境固有の設定（Linux/MacのC言語厳格化エラーへの対策を追加）
 if(WIN32)
     target_compile_definitions(OpenXLSX_Wrapper PRIVATE EXPORT_API)
     target_compile_options(OpenXLSX_Wrapper PRIVATE /permissive- /Zc:twoPhase-)
+else()
+    # Ubuntu（GCC）と macOS（Clang）で古いCコード（miniz）のビルドを通すための魔法のフラグ
+    # 警告をエラーとして扱わず、古いC言語の記述を許可します
+    target_compile_options(OpenXLSX_Wrapper PRIVATE 
+        $<$<COMPILE_LANGUAGE:C>:-w -fpermissive>
+    )
 endif()
