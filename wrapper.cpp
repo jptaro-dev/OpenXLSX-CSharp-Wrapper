@@ -53,21 +53,21 @@ extern "C" {
         delete static_cast<XLDocument*>(docPtr);
     }
 
-    EXPORT void OpenXLSX_SaveAndClose(void* docPtr) {
-        if (!docPtr) return;
-        auto* doc = static_cast<XLDocument*>(docPtr);
-        doc->save();
-        doc->close();
-        delete doc;
-    }
+    //EXPORT void OpenXLSX_SaveAndClose(void* docPtr) {
+    //    if (!docPtr) return;
+    //    auto* doc = static_cast<XLDocument*>(docPtr);
+    //    doc->save();
+    //    doc->close();
+    //    delete doc;
+    //}
 
-    EXPORT void OpenXLSX_SaveAsAndClose(void* docPtr, const char* path) {
-        if (!docPtr || !path) return;
-        auto* doc = static_cast<XLDocument*>(docPtr);
-        doc->saveAs(path);
-        doc->close();
-        delete doc;
-    }
+    //EXPORT void OpenXLSX_SaveAsAndClose(void* docPtr, const char* path) {
+    //    if (!docPtr || !path) return;
+    //    auto* doc = static_cast<XLDocument*>(docPtr);
+    //    doc->saveAs(path);
+    //    doc->close();
+    //    delete doc;
+    //}
 
     // =========================================================================
     // 2. ブック全体を管理する関数 (XLWorkbook)
