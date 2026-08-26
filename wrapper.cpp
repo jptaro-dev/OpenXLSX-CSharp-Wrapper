@@ -103,6 +103,42 @@ extern "C" {
         static_cast<XLWorkbook*>(wbkPtr)->cloneSheet(sourceName, cloneName);
     }
 
+    EXPORT uint32_t OpenXLSX_GetSheetCount(void* wbkPtr) {
+        if (!wbkPtr) return 0;
+        auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
+        
+        // 本家の sheetCount() メソッドを呼び出してその数をそのまま返す
+        return wbk->sheetCount();
+    }
+
+    EXPORT const char* OpenXLSX_GetSheetName(void* wbkPtr, uint32_t index) {
+        if (!wbkPtr) return "";
+        auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
+        
+        try {
+            // 本家の sheetNames() は std::vector<std::string> を返します
+            auto names = wbk->sheetNames();
+            
+            // インデックスが範囲内なら、そのシート名を静的バッファにコピーして安全に返します
+            if (index < names.size()) {
+                static std::string ret;
+                ret = names[index];
+                return ret.c_str();
+            }
+        } catch (...) {}
+        
+        return "";
+    }
+
+    EXPORT void OpenXLSX_RenameWorksheet(void* wbkPtr, const char* oldName, const char* newName) {
+        if (!wbkPtr || !oldName || !newName) return;
+        auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
+        
+        if (wbk->sheetExists(oldName)) {
+            wbk->worksheet(oldName).setName(newName);
+        }
+    }
+    
     // =========================================================================
     // 3. ワークシートを操作する関数 (XLWorksheet)
     // =========================================================================
@@ -110,6 +146,19 @@ extern "C" {
     EXPORT void* OpenXLSX_GetWorksheet(void* wbkPtr, const char* sheetName) {
         if (!wbkPtr || !sheetName) return nullptr;
         return new XLWorksheet(static_cast<XLWorkbook*>(wbkPtr)->worksheet(sheetName));
+    }
+
+    EXPORT void* OpenXLSX_GetWorksheetByIndex(void* wbkPtr, uint32_t index) {
+        if (!wbkPtr) return nullptr;
+        auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
+        
+        try {
+            // 本家の worksheet() メソッドに数値を渡してシートを取得し、newしてポインタを返す
+            return new XLWorksheet(wbk->worksheet(index));
+        } catch (...) {
+            // 万が一、存在しないインデックス（例：1枚しかないのに3を指定した）が渡されたら安全にnullを返す
+            return nullptr; 
+        }
     }
 
     EXPORT void OpenXLSX_FreeWorksheet(void* wksPtr) {
