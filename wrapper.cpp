@@ -20,27 +20,62 @@ extern "C" {
     // =========================================================================
 
     EXPORT void* OpenXLSX_CreateDoc() {
-        return new XLDocument();
+        try {
+            return new XLDocument();
+        } 
+        catch (...) {
+            return nullptr;
+        }
     }
 
-    EXPORT void OpenXLSX_OpenDoc(void* docPtr, const char* path) {
-        if (!docPtr || !path) return;
-        static_cast<XLDocument*>(docPtr)->open(path);
+    EXPORT bool OpenXLSX_OpenDoc(void* docPtr, const char* path) {
+        if (!docPtr || !path) return false;
+        
+        try {
+            auto* doc = static_cast<XLDocument*>(docPtr);
+            doc->open(path);
+            
+            return doc->workbook().sheetCount() > 0;
+        } 
+        catch (...) {
+            return false; 
+        }
     }
 
-    EXPORT void OpenXLSX_CreateNewDoc(void* docPtr, const char* path) {
-        if (!docPtr || !path) return;
-        static_cast<XLDocument*>(docPtr)->create(path);
+    EXPORT bool OpenXLSX_CreateNewDoc(void* docPtr, const char* path) {
+        if (!docPtr || !path) return false;
+        
+        try {
+            auto* doc = static_cast<XLDocument*>(docPtr);
+            doc->create(path);
+            
+            return true;
+        } 
+        catch (...) {
+            return false; 
+        }
     }
 
-    EXPORT void OpenXLSX_SaveDoc(void* docPtr) {
-        if (!docPtr) return;
-        static_cast<XLDocument*>(docPtr)->save();
+    EXPORT bool OpenXLSX_SaveDoc(void* docPtr) {
+        if (!docPtr) return false;
+        try {
+            static_cast<XLDocument*>(docPtr)->save();
+            return true;
+        } 
+        catch (...) {
+            return false; 
+        }
     }
-
-    EXPORT void OpenXLSX_SaveDocAs(void* docPtr, const char* path) {
-        if (!docPtr || !path) return;
-        static_cast<XLDocument*>(docPtr)->saveAs(path);
+    
+    EXPORT bool OpenXLSX_SaveDocAs(void* docPtr, const char* path) {
+        if (!docPtr || !path) return false;
+        try {
+            static_cast<XLDocument*>(docPtr)->saveAs(path);
+            return true;
+        } 
+        catch (...) {
+            return false; 
+        }
     }
 
     EXPORT void OpenXLSX_CloseDoc(void* docPtr) {
@@ -52,22 +87,6 @@ extern "C" {
         if (!docPtr) return;
         delete static_cast<XLDocument*>(docPtr);
     }
-
-    //EXPORT void OpenXLSX_SaveAndClose(void* docPtr) {
-    //    if (!docPtr) return;
-    //    auto* doc = static_cast<XLDocument*>(docPtr);
-    //    doc->save();
-    //    doc->close();
-    //    delete doc;
-    //}
-
-    //EXPORT void OpenXLSX_SaveAsAndClose(void* docPtr, const char* path) {
-    //    if (!docPtr || !path) return;
-    //    auto* doc = static_cast<XLDocument*>(docPtr);
-    //    doc->saveAs(path);
-    //    doc->close();
-    //    delete doc;
-    //}
 
     // =========================================================================
     // 2. ブック全体を管理する関数 (XLWorkbook)
@@ -107,7 +126,6 @@ extern "C" {
         if (!wbkPtr) return 0;
         auto* wbk = static_cast<XLWorkbook*>(wbkPtr);
         
-        // 本家の sheetCount() メソッドを呼び出してその数をそのまま返す
         return wbk->sheetCount();
     }
 
